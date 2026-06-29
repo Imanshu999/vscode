@@ -25,32 +25,21 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
-    - name: Global Purge of Broken Dependency
+    - name: Force Git URL Redirect & Clean
       run: |
-        # पुरानी लॉक फाइल्स को हटाना
-        rm -f yarn.lock package-lock.json
+        # गिटहब सर्वर्स को बोलना कि इस खराब गिट यूआरएल की जगह सीधे एक खाली पब्लिक गिटहब रिपो को हिट करे
+        git config --global url."https://github.com/actions/checkout.git".insteadOf "https://github.com/microsoft/vscode-gulp-electron.git"
+        git config --global url."https://github.com/actions/checkout.git".insteadOf "git+https://github.com/microsoft/vscode-gulp-electron.git"
         
-        # पूरे प्रोजेक्ट के सभी package.json फाइल्स में से इस खराब गिट लिंक को ढूंढकर डिलीट करना
-        find . -name "package.json" -type f -exec node -e "
-          const fs = require('fs');
-          const file = process.argv[1];
-          try {
-            let content = fs.readFileSync(file, 'utf8');
-            if (content.includes('vscode-gulp-electron')) {
-              const pkg = JSON.parse(content);
-              if (pkg.dependencies) delete pkg.dependencies['vscode-gulp-electron'];
-              if (pkg.devDependencies) delete pkg.devDependencies['vscode-gulp-electron'];
-              if (pkg.optionalDependencies) delete pkg.optionalDependencies['vscode-gulp-electron'];
-              fs.writeFileSync(file, JSON.stringify(pkg, null, 2));
-              console.log('Purged from:', file);
-            }
-          } catch(e) {}
-        " {} \;
+        # सभी सब-फ़ोल्डर्स की फाइल्स को साफ़ करना
+        rm -f yarn.lock package-lock.json
+        find . -name "yarn.lock" -type f -delete
+        find . -name "package-lock.json" -type f -delete
 
     - name: Install Root Dependencies
       run: |
         yarn config set ignore-engines true
-        yarn install --ignore-scripts --network-timeout 100000
+        yarn install --ignore-scripts --network-timeout 150000
 
     - name: Compile VS Code Web Assets
       run: |
