@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-apk:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Source Code
@@ -28,7 +28,7 @@ jobs:
     - name: Install Root Dependencies
       run: |
         yarn config set ignore-engines true
-        yarn install
+        yarn install --network-timeout 100000
 
     - name: Compile VS Code Web Assets
       run: |
