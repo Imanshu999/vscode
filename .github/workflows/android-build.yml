@@ -25,34 +25,47 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
-    - name: Force Purge Yarn and Broken Deps
+    - name: Force Purge Yarn and Native/Broken Deps
       run: |
         rm -f yarn.lock
         find . -name "yarn.lock" -type f -delete
         
+        # सभी package.json फाइल्स में से रिमोट गिट पैकेज और भारी नेटिव डिपेंडेंसीज़ (जैसे kerberos) को साफ़ करना
         find . -name "package.json" -type f -exec node -e "
           const fs = require('fs');
           const file = process.argv[1];
           try {
             let content = fs.readFileSync(file, 'utf8');
-            if (content.includes('vscode-gulp-electron')) {
-              const pkg = JSON.parse(content);
-              if (pkg.dependencies) delete pkg.dependencies['vscode-gulp-electron'];
-              if (pkg.devDependencies) delete pkg.devDependencies['vscode-gulp-electron'];
-              if (pkg.optionalDependencies) delete pkg.optionalDependencies['vscode-gulp-electron'];
+            let changed = false;
+            const pkg = JSON.parse(content);
+            
+            const badDeps = ['vscode-gulp-electron', 'kerberos', 'keytar', 'native-is-elevated'];
+            
+            ['dependencies', 'devDependencies', 'optionalDependencies'].forEach(type => {
+              if (pkg[type]) {
+                badDeps.forEach(dep => {
+                  if (pkg[type][dep]) {
+                    delete pkg[type][dep];
+                    changed = true;
+                  }
+                });
+              }
+            });
+            
+            if (changed) {
               fs.writeFileSync(file, JSON.stringify(pkg, null, 2));
+              console.log('Cleaned dependencies from:', file);
             }
           } catch(e) {}
         " {} \;
 
     - name: Install Root Dependencies via NPM
       run: |
-        # बिना ignore-scripts के फ्रेश इंस्टॉल ताकि सारे कंपाइलर टूल्स चालू हो जाएं
-        npm install --legacy-peer-deps
+        # --no-optional फ़्लैग के साथ नेटिव C++ कंपाइलेशन (node-gyp) को पूरी तरह स्किप करना
+        npm install --legacy-peer-deps --no-optional
 
     - name: Compile VS Code Web Assets
       run: |
-        # फ़ोल्डर बनाना सुनिश्चित करना और कंपाइल करना
         mkdir -p out-monaco
         npm run compile || true
         npx gulp compile-web || true
