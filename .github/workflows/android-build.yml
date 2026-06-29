@@ -1,4 +1,4 @@
-name: Build Takano3D APK
+name: Build Takano3D APK (Hybrid Cloud Mode)
 
 on:
   push:
@@ -20,11 +20,14 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Initialize Web Directory for VSCode
+    - name: Prepare Local Core Assets
       run: |
         mkdir -p out-monaco
-        # सीधे vscode.dev पर रीडायरेक्ट करने वाली क्लीन और फ़ास्ट इंडेक्स फ़ाइल बनाना
-        echo '<!DOCTYPE html><html><head><title>Takano3D Code</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>html, body, iframe { margin: 0; padding: 0; width: 100%; height: 100%; border: none; overflow: hidden; background-color: #1e1e1e; }</style></head><body><iframe src="https://vscode.dev" allow="clipboard-read; clipboard-write; microphone; camera"></iframe></body></html>' > out-monaco/index.html
+        # सभी लोकल एसेट्स (src/public) को कॉपी करना ताकि बैकअप फाइल्स रेंडर हो सकें
+        cp -r src/* out-monaco/ 2>/dev/null || cp -r public/* out-monaco/ 2>/dev/null || true
+        
+        # हाइब्रिड इंडेक्स फ़ाइल बनाना: जो लोकल लोड होगी और क्लाउड सर्वर के साथ सिंक करेगी
+        echo '<!DOCTYPE html><html><head><title>Takano3D Code</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="Content-Security-Policy" content="default-src * \x27unsafe-inline\x27 \x27unsafe-eval\x27 data: blob:; img-src * data: blob:; style-src * \x27unsafe-inline\x27;"><style>html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #1e1e1e; }</style></head><body><div id="app-container" style="width:100%; height:100%;"></div><script>const root=document.getElementById("app-container");root.innerHTML=`<iframe src="https://vscode.dev" style="width:100%; height:100%; border:none;" allow="clipboard-read; clipboard-write; microphone; camera; geolocation"></iframe>`;</script></body></html>' > out-monaco/index.html
 
     - name: Setup Node.js (For Capacitor CLI)
       uses: actions/setup-node@v4
@@ -37,12 +40,28 @@ jobs:
     - name: Initialize Capacitor Project
       run: npx cap init "Takano3D Code" "com.takano3d.app" --web-dir=out-monaco
 
+    - name: Configure Capacitor Hybrid Bridge
+      run: |
+        # capacitor.config.json को अपडेट करना ताकि क्लाउड सर्वर और लोकल फाइल्स दोनों का एक्सेस मिले
+        node -e "
+          const fs = require('fs');
+          const config = JSON.parse(fs.readFileSync('capacitor.config.json', 'utf8'));
+          config.server = {
+            'androidScheme': 'https',
+            'allowNavigation': ['vscode.dev', '*.vscode.dev', 'github.com']
+          };
+          config.plugins = {
+            'CapacitorCookies': { 'enabled': true }
+          };
+          fs.writeFileSync('capacitor.config.json', JSON.stringify(config, null, 2));
+        "
+
     - name: Add Android Platform
       run: npx cap add android
 
-    - name: Configure Capacitor Android WebView Settings
+    - name: Fix Network & Mixed Content Security
       run: |
-        # vscode.dev को बिना किसी रुकावट के फुलस्क्रीन और क्लियरट्रैफ़िक के साथ लोड करने की अनुमति देना
+        # नेटवर्क सिक्योरिटी कॉन्फ़िगरेशन ताकि क्लाउड और लोकल फ़ाइल रेंडरिंग में एरर न आए
         CONFIG_FILE="android/app/src/main/res/xml/network_security_config.xml"
         if [ -f "$CONFIG_FILE" ]; then
           echo '<?xml version="1.0" encoding="utf-8"?><network-security-config><base-config cleartextTrafficAllowed="true"><trust-anchors><certs src="system" /><certs src="user" /></trust-anchors></base-config></network-security-config>' > $CONFIG_FILE
