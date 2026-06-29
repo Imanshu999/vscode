@@ -1,0 +1,60 @@
+name: Build Takano3D APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install Root Dependencies
+      run: yarn install --frozen-lockfile
+
+    - name: Compile VS Code Web Assets
+      run: |
+        yarn compile
+        yarn gulp compile-web
+
+    - name: Install Capacitor CLI & Core
+      run: npm install @capacitor/core @capacitor/cli @capacitor/android
+
+    - name: Initialize Capacitor Project
+      run: npm run capacitor:init
+
+    - name: Add Android Platform
+      run: npm run capacitor:add-android
+
+    - name: Copy Web Build to Android Assets
+      run: npm run capacitor:sync
+
+    - name: Build Unsigned APK via Gradle
+      run: |
+        cd android
+        ./gradlew assembleDebug
+
+    - name: Upload Takano3D APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Takano3D-Code-APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk
