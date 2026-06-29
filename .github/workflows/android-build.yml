@@ -18,7 +18,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '17'
+        java-version: '21'
 
     - name: Prepare Local Core Assets
       run: |
@@ -34,17 +34,20 @@ jobs:
 
     - name: Install Capacitor CLI & Core Safely
       run: |
-        # --no-audit और --ignore-scripts फ़्लैग्स के साथ फ्रेश पैकेज इंस्टॉल करना ताकि kerberos कंपाइल न हो
         npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps --ignore-scripts --no-audit
 
-    - name: Initialize Capacitor Project
-      run: npx cap init "Takano3D Code" "com.takano3d.app" --web-dir=out-monaco
-
-    - name: Configure Capacitor Hybrid Bridge
+    - name: Configure Existing Capacitor Hybrid Bridge
       run: |
+        # अगर फाइल नहीं है तो एक डमी कॉन्फिग बना देगा, और है तो उसे हाइब्रिड मोड में मॉडिफाई कर देगा
         node -e "
           const fs = require('fs');
-          const config = JSON.parse(fs.readFileSync('capacitor.config.json', 'utf8'));
+          let config = {};
+          if (fs.existsSync('capacitor.config.json')) {
+            config = JSON.parse(fs.readFileSync('capacitor.config.json', 'utf8'));
+          } else {
+            config = { appId: 'com.takano3d.app', appName: 'Takano3D Code', webDir: 'out-monaco' };
+          }
+          config.webDir = 'out-monaco';
           config.server = {
             'androidScheme': 'https',
             'allowNavigation': ['vscode.dev', '*.vscode.dev', 'github.com']
@@ -53,10 +56,13 @@ jobs:
             'CapacitorCookies': { 'enabled': true }
           };
           fs.writeFileSync('capacitor.config.json', JSON.stringify(config, null, 2));
+          console.log('Successfully updated hybrid bridge config!');
         "
 
     - name: Add Android Platform
-      run: npx cap add android
+      run: |
+        # अगर एंड्रॉइड प्लेटफॉर्म पहले से मौजूद है तो एरर न दे, चुपचाप आगे बढ़े
+        npx cap add android || true
 
     - name: Fix Network & Mixed Content Security
       run: |
