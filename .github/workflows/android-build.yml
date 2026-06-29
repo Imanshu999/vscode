@@ -14,11 +14,11 @@ jobs:
     - name: Checkout Source Code
       uses: actions/checkout@v4
 
-    - name: Setup Java JDK (Fixed for Capacitor Gradle)
+    - name: Setup Java JDK 21 (With Strict Environment)
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '17' # इसे वापस 17 किया ताकि 'invalid source release' एरर न आए
+        java-version: '21' # आपके प्रोजेक्ट के अनुसार इसे 21 पर लॉक कर दिया
 
     - name: Create Web Directory
       run: |
@@ -71,11 +71,12 @@ jobs:
     - name: Copy and Sync Assets
       run: npx cap sync android
 
-    - name: Build Unsigned APK via Gradle
+    - name: Build Unsigned APK via Gradle (Force Java 21)
       run: |
         cd android
         chmod +x gradlew
-        ./gradlew assembleDebug
+        # यहाँ हम ग्रैडल को सीधे JAVA_HOME पाथ पास कर रहे हैं ताकि वह एरर न दे
+        ./gradlew assembleDebug -Dorg.gradle.java.home=$JAVA_HOME_21_X64
 
     - name: Upload Takano3D APK Artifact
       uses: actions/upload-artifact@v4
