@@ -23,7 +23,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '17' # Gradle और Android Build के लिए Java 17 पर अपग्रेड किया
+        java-version: '21' # ग्रैडल की डिमांड के मुताबिक Java 21 पर सेट किया
 
     - name: Absolute Purge of Native and Broken Dependencies
       run: |
