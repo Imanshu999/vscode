@@ -10,6 +10,9 @@
   "type": "module",
   "private": true,
   "scripts": {
+        "capacitor:init": "cap init \"Takano3D Code\" \"com.takano3d.app\" --web-dir=out-monaco",
+    "capacitor:add-android": "cap add android",
+    "capacitor:sync": "cap sync android",
     "test": "echo Please run any of the test scripts from the scripts folder.",
     "test-browser": "npx playwright install && node test/unit/browser/index.js",
     "test-browser-no-install": "node test/unit/browser/index.js",
