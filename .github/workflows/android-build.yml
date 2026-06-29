@@ -25,50 +25,44 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
-    - name: Force Purge Yarn and Native/Broken Deps
+    - name: Force Purge Yarn & Inject NPM Overrides
       run: |
         rm -f yarn.lock
         find . -name "yarn.lock" -type f -delete
         
-        # सभी package.json फाइल्स में से रिमोट गिट पैकेज और भारी नेटिव डिपेंडेंसीज़ (जैसे kerberos) को साफ़ करना
-        find . -name "package.json" -type f -exec node -e "
+        # मुख्य package.json में जबरदस्ती overrides इंजेक्ट करना ताकि कोई भी नेटिव पैकेज कंपाइल ही न हो
+        node -e "
           const fs = require('fs');
-          const file = process.argv[1];
-          try {
-            let content = fs.readFileSync(file, 'utf8');
-            let changed = false;
-            const pkg = JSON.parse(content);
+          if (fs.existsSync('package.json')) {
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             
-            const badDeps = ['vscode-gulp-electron', 'kerberos', 'keytar', 'native-is-elevated'];
+            // पुराने जिद्दी पैकेज हटाना
+            if (pkg.dependencies) delete pkg.dependencies['vscode-gulp-electron'];
+            if (pkg.devDependencies) delete pkg.devDependencies['vscode-gulp-electron'];
             
-            ['dependencies', 'devDependencies', 'optionalDependencies'].forEach(type => {
-              if (pkg[type]) {
-                badDeps.forEach(dep => {
-                  if (pkg[type][dep]) {
-                    delete pkg[type][dep];
-                    changed = true;
-                  }
-                });
-              }
-            });
+            // ओवरराइड्स लागू करना ताकि डीप डिपेंडेंसीज़ भी ब्लॉक हो जाएं
+            pkg.overrides = {
+              'kerberos': 'empty',
+              'keytar': 'empty',
+              'native-is-elevated': 'empty'
+            };
             
-            if (changed) {
-              fs.writeFileSync(file, JSON.stringify(pkg, null, 2));
-              console.log('Cleaned dependencies from:', file);
-            }
-          } catch(e) {}
-        " {} \;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+            console.log('Successfully injected overrides into root package.json');
+          }
+        "
 
     - name: Install Root Dependencies via NPM
       run: |
-        # --no-optional फ़्लैग के साथ नेटिव C++ कंपाइलेशन (node-gyp) को पूरी तरह स्किप करना
-        npm install --legacy-peer-deps --no-optional
+        # --ignore-scripts के साथ पूरी तरह से C++ एरर्स का रास्ता बंद करना
+        npm install --legacy-peer-deps --ignore-scripts
 
     - name: Compile VS Code Web Assets
       run: |
         mkdir -p out-monaco
-        npm run compile || true
-        npx gulp compile-web || true
+        # बिना || true के ताकि असली कंपाइलेशन लॉग दिख सके
+        npm run compile
+        npx gulp compile-web
 
     - name: Upgrade Node.js (For Capacitor CLI)
       uses: actions/setup-node@v4
