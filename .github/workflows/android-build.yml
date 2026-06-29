@@ -14,67 +14,19 @@ jobs:
     - name: Checkout Source Code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js (Legacy for VS Code Build)
-      uses: actions/setup-node@v4
-      with:
-        node-version: '16.20.2'
-
     - name: Setup Java JDK
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '21'
+        java-version: '17'
 
-    - name: Absolute Purge of Native and Broken Dependencies
-      run: |
-        rm -f yarn.lock package-lock.json
-        find . -name "yarn.lock" -type f -delete
-        find . -name "package-lock.json" -type f -delete
-        
-        find . -name "package.json" -type f -exec node -e "
-          const fs = require('fs');
-          const file = process.argv[1];
-          try {
-            let content = fs.readFileSync(file, 'utf8');
-            let changed = false;
-            const pkg = JSON.parse(content);
-            
-            const blacklistedDeps = ['vscode-gulp-electron', 'kerberos', 'keytar', 'native-is-elevated'];
-            
-            ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'].forEach(type => {
-              if (pkg[type]) {
-                blacklistedDeps.forEach(dep => {
-                  if (pkg[type][dep]) {
-                    delete pkg[type][dep];
-                    changed = true;
-                  }
-                });
-              }
-            });
-            
-            if (changed) {
-              fs.writeFileSync(file, JSON.stringify(pkg, null, 2));
-            }
-          } catch(e) {}
-        " {} \;
-
-    - name: Install Root Dependencies via NPM
-      run: |
-        npm install --legacy-peer-deps --ignore-scripts
-
-    - name: Force Compile VS Code Web Assets
+    - name: Initialize Web Directory for VSCode
       run: |
         mkdir -p out-monaco
-        NODE_OPTIONS="--no-warnings" npm run compile || true
-        NODE_OPTIONS="--no-warnings" npx gulp compile-web || true
-        
-        # एसेट्स को हर संभव लोकेशन से खोजना और आउटपुट फ़ोल्डर को भरना
-        cp -r src/* out-monaco/ 2>/dev/null || cp -r public/* out-monaco/ 2>/dev/null || true
-        
-        # कैपेसिटर फ्रेंडली और पाथ-एरर फ्री index.html जनरेट करना
-        echo '<!DOCTYPE html><html><head><title>Takano3D Code</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="Content-Security-Policy" content="default-src * \x27unsafe-inline\x27 \x27unsafe-eval\x27 data: blob:; img-src * data: blob:; style-src * \x27unsafe-inline\x27;"><style>html, body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #1e1e1e; color: white; display: flex; justify-content: center; align-items: center; font-family: sans-serif; }</style></head><body><div id="root"><h1>Takano3D Code Loading...</h1></div><script src="vs/loader.js" defer></script><script defer>window.onload = function() { console.log("App Ready"); };</script></body></html>' > out-monaco/index.html
+        # सीधे vscode.dev पर रीडायरेक्ट करने वाली क्लीन और फ़ास्ट इंडेक्स फ़ाइल बनाना
+        echo '<!DOCTYPE html><html><head><title>Takano3D Code</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>html, body, iframe { margin: 0; padding: 0; width: 100%; height: 100%; border: none; overflow: hidden; background-color: #1e1e1e; }</style></head><body><iframe src="https://vscode.dev" allow="clipboard-read; clipboard-write; microphone; camera"></iframe></body></html>' > out-monaco/index.html
 
-    - name: Upgrade Node.js (For Capacitor CLI)
+    - name: Setup Node.js (For Capacitor CLI)
       uses: actions/setup-node@v4
       with:
         node-version: '22'
@@ -88,9 +40,9 @@ jobs:
     - name: Add Android Platform
       run: npx cap add android
 
-    - name: Apply Mixed Content Fix for Android WebView
+    - name: Configure Capacitor Android WebView Settings
       run: |
-        # एंड्रॉइड कैपेसिटर सेटिंग्स में मिक्स कंटेंट अलाउ करना और क्लियरटेक्स्ट इनेबल करना ताकि कोई फाइल ब्लॉक न हो
+        # vscode.dev को बिना किसी रुकावट के फुलस्क्रीन और क्लियरट्रैफ़िक के साथ लोड करने की अनुमति देना
         CONFIG_FILE="android/app/src/main/res/xml/network_security_config.xml"
         if [ -f "$CONFIG_FILE" ]; then
           echo '<?xml version="1.0" encoding="utf-8"?><network-security-config><base-config cleartextTrafficAllowed="true"><trust-anchors><certs src="system" /><certs src="user" /></trust-anchors></base-config></network-security-config>' > $CONFIG_FILE
