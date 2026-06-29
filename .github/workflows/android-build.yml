@@ -25,10 +25,21 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
+    - name: Bypass Broken Dependencies
+      run: |
+        # package.json में जबरदस्ती डमी पैकेज इन्जेक्ट करना ताकि टूटी हुई गिट लिंक पर एरर न आए
+        node -e "
+        const fs = require('fs');
+        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+        pkg.resolutions = pkg.resolutions || {};
+        pkg.resolutions['**/vscode-gulp-electron'] = 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz';
+        fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+        "
+
     - name: Install Root Dependencies
       run: |
         yarn config set ignore-engines true
-        yarn install --production --ignore-scripts --network-timeout 100000
+        yarn install --ignore-scripts --network-timeout 100000
 
     - name: Compile VS Code Web Assets
       run: |
