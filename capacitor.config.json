@@ -1,0 +1,6 @@
+{
+  "appId": "com.takano3d.app",
+  "appName": "Takano3D Code",
+  "webDir": "out-monaco",
+  "bundledWebRuntime": false
+}
