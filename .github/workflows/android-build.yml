@@ -25,22 +25,27 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
-    - name: Remove Lockfile and Force Clean Dependencies
+    - name: Global Purge of Broken Dependency
       run: |
-        # पुरानी लॉक फ़ाइल डिलीट करना ताकि Yarn पुरानी लिंक्स पर न अटके
-        rm -f yarn.lock
-        rm -f package-lock.json
+        # पुरानी लॉक फाइल्स को हटाना
+        rm -f yarn.lock package-lock.json
         
-        # package.json में से उस ख़राब डिपेंडेंसी को पूरी तरह साफ़ करना
-        node -e "
-        const fs = require('fs');
-        if (fs.existsSync('package.json')) {
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          if (pkg.dependencies) delete pkg.dependencies['vscode-gulp-electron'];
-          if (pkg.devDependencies) delete pkg.devDependencies['vscode-gulp-electron'];
-          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-        }
-        "
+        # पूरे प्रोजेक्ट के सभी package.json फाइल्स में से इस खराब गिट लिंक को ढूंढकर डिलीट करना
+        find . -name "package.json" -type f -exec node -e "
+          const fs = require('fs');
+          const file = process.argv[1];
+          try {
+            let content = fs.readFileSync(file, 'utf8');
+            if (content.includes('vscode-gulp-electron')) {
+              const pkg = JSON.parse(content);
+              if (pkg.dependencies) delete pkg.dependencies['vscode-gulp-electron'];
+              if (pkg.devDependencies) delete pkg.devDependencies['vscode-gulp-electron'];
+              if (pkg.optionalDependencies) delete pkg.optionalDependencies['vscode-gulp-electron'];
+              fs.writeFileSync(file, JSON.stringify(pkg, null, 2));
+              console.log('Purged from:', file);
+            }
+          } catch(e) {}
+        " {} \;
 
     - name: Install Root Dependencies
       run: |
