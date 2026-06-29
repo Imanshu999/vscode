@@ -25,12 +25,13 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
-    - name: Force Fix Broken Git Dependencies
+    - name: Remove Lockfile and Force Clean Dependencies
       run: |
-        # गिटहब को बोलना कि इस खराब यूआरएल के लिए इंटरनेट पर न जाए, लोकल खाली गिट रिपो बना ले
-        git config --global url."https://github.com/lodash/lodash.git".insteadOf "https://github.com/microsoft/vscode-gulp-electron.git"
+        # पुरानी लॉक फ़ाइल डिलीट करना ताकि Yarn पुरानी लिंक्स पर न अटके
+        rm -f yarn.lock
+        rm -f package-lock.json
         
-        # package.json में से इस डिपेंडेंसी को पूरी तरह डिलीट करना
+        # package.json में से उस ख़राब डिपेंडेंसी को पूरी तरह साफ़ करना
         node -e "
         const fs = require('fs');
         if (fs.existsSync('package.json')) {
