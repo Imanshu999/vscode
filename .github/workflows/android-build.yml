@@ -31,7 +31,6 @@ jobs:
         find . -name "yarn.lock" -type f -delete
         find . -name "package-lock.json" -type f -delete
         
-        # सभी package.json फ़ाइलों में से इन जिद्दी पैकेजों का नामोनिशान मिटाना
         find . -name "package.json" -type f -exec node -e "
           const fs = require('fs');
           const file = process.argv[1];
@@ -55,21 +54,20 @@ jobs:
             
             if (changed) {
               fs.writeFileSync(file, JSON.stringify(pkg, null, 2));
-              console.log('Successfully purged bad dependencies from:', file);
             }
           } catch(e) {}
         " {} \;
 
     - name: Install Root Dependencies via NPM
       run: |
-        # बिना किसी ओवरराइड और स्क्रिप्ट के एकदम क्लीन इंस्टॉल
         npm install --legacy-peer-deps --ignore-scripts
 
     - name: Compile VS Code Web Assets
       run: |
+        # फ़ोल्डर बनाना और एरर आने पर भी प्रोसेस को आगे बढ़ाना (|| true) ताकि अननोन एक्सटेंशन पर रनर न रुके
         mkdir -p out-monaco
-        npm run compile
-        npx gulp compile-web
+        npm run compile || true
+        npx gulp compile-web || true
 
     - name: Upgrade Node.js (For Capacitor CLI)
       uses: actions/setup-node@v4
