@@ -25,42 +25,49 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
-    - name: Force Purge Yarn & Inject NPM Overrides
+    - name: Absolute Purge of Native and Broken Dependencies
       run: |
-        rm -f yarn.lock
+        rm -f yarn.lock package-lock.json
         find . -name "yarn.lock" -type f -delete
+        find . -name "package-lock.json" -type f -delete
         
-        # मुख्य package.json में जबरदस्ती overrides इंजेक्ट करना ताकि कोई भी नेटिव पैकेज कंपाइल ही न हो
-        node -e "
+        # सभी package.json फ़ाइलों में से इन जिद्दी पैकेजों का नामोनिशान मिटाना
+        find . -name "package.json" -type f -exec node -e "
           const fs = require('fs');
-          if (fs.existsSync('package.json')) {
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const file = process.argv[1];
+          try {
+            let content = fs.readFileSync(file, 'utf8');
+            let changed = false;
+            const pkg = JSON.parse(content);
             
-            // पुराने जिद्दी पैकेज हटाना
-            if (pkg.dependencies) delete pkg.dependencies['vscode-gulp-electron'];
-            if (pkg.devDependencies) delete pkg.devDependencies['vscode-gulp-electron'];
+            const blacklistedDeps = ['vscode-gulp-electron', 'kerberos', 'keytar', 'native-is-elevated'];
             
-            // ओवरराइड्स लागू करना ताकि डीप डिपेंडेंसीज़ भी ब्लॉक हो जाएं
-            pkg.overrides = {
-              'kerberos': 'empty',
-              'keytar': 'empty',
-              'native-is-elevated': 'empty'
-            };
+            ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'].forEach(type => {
+              if (pkg[type]) {
+                blacklistedDeps.forEach(dep => {
+                  if (pkg[type][dep]) {
+                    delete pkg[type][dep];
+                    changed = true;
+                  }
+                });
+              }
+            });
             
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-            console.log('Successfully injected overrides into root package.json');
-          }
-        "
+            if (changed) {
+              fs.writeFileSync(file, JSON.stringify(pkg, null, 2));
+              console.log('Successfully purged bad dependencies from:', file);
+            }
+          } catch(e) {}
+        " {} \;
 
     - name: Install Root Dependencies via NPM
       run: |
-        # --ignore-scripts के साथ पूरी तरह से C++ एरर्स का रास्ता बंद करना
+        # बिना किसी ओवरराइड और स्क्रिप्ट के एकदम क्लीन इंस्टॉल
         npm install --legacy-peer-deps --ignore-scripts
 
     - name: Compile VS Code Web Assets
       run: |
         mkdir -p out-monaco
-        # बिना || true के ताकि असली कंपाइलेशन लॉग दिख सके
         npm run compile
         npx gulp compile-web
 
