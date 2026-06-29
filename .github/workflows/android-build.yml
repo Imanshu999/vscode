@@ -60,29 +60,37 @@ jobs:
       run: |
         npx cap add android || true
 
-    - name: Inject VS Code Official App Icon
+    - name: Nuke Old Adaptive Icons & Inject Real VS Code Icon
       run: |
-        # एंड्रॉइड के सभी मिपमैप (mipmap) फ़ोल्डर्स में वीएस कोड का ऑफिशियल आइकन डाउनलोड करके रिप्लेस करना
         cd android/app/src/main/res
         
+        # 1. पहले से मौजूद कैपेसिटर के एडेप्टिव आइकन की एक्सएमएल फाइलों को डिलीट करना ताकि वे पुराने आइकन को फोर्स न करें
+        find . -name "ic_launcher_background.xml" -delete
+        find . -name "ic_launcher_foreground.xml" -delete
+        find . -name "ic_launcher.xml" -delete
+        
+        # वीएस कोड का ऑफिशियल हाई-रेजोल्यूशन आइकन यूआरएल
         ICON_URL="https://raw.githubusercontent.com/microsoft/vscode/main/resources/linux/code.png"
         
-        # सभी रेजोल्यूशन फ़ोल्डर्स में डिफॉल्ट ic_launcher.png और ic_launcher_round.png को बदलना
-        curl -sL "$ICON_URL" -o mipmap-mdpi/ic_launcher.png
-        curl -sL "$ICON_URL" -o mipmap-mdpi/ic_launcher_round.png
+        # 2. सभी मिपमैप फोल्डर्स में पुराने सभी आइकन्स को सीधे वीएस कोड के आइकन से रिप्लेस करना
+        for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+          if [ -d "$dir" ]; then
+            curl -sL "$ICON_URL" -o "$dir/ic_launcher.png"
+            curl -sL "$ICON_URL" -o "$dir/ic_launcher_round.png"
+            curl -sL "$ICON_URL" -o "$dir/ic_launcher_foreground.png"
+          fi
+        done
         
-        curl -sL "$ICON_URL" -o mipmap-hdpi/ic_launcher.png
-        curl -sL "$ICON_URL" -o mipmap-hdpi/ic_launcher_round.png
+        # 3. एडेप्टिव आइकन को बायपास करने के लिए एक फ्लैट बैकग्राउंड एक्सएमएल जनरेट करना (ताकि सिर्फ वीएस कोड आइकन दिखे)
+        mkdir -p drawable
+        echo '<?xml version="1.0" encoding="utf-8"?><shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle"><solid android:color="#1e1e1e"/></shape>' > drawable/ic_launcher_background.xml
         
-        curl -sL "$ICON_URL" -o mipmap-xhdpi/ic_launcher.png
-        curl -sL "$ICON_URL" -o mipmap-xhdpi/ic_launcher_round.png
+        # मिपमैप-एनी-डीपीआई फोल्डर में एडेप्टिव कॉन्फ़िगरेशन को अपडेट करना
+        mkdir -p mipmap-anydpi-v26
+        echo '<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@drawable/ic_launcher_background"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>' > mipmap-anydpi-v26/ic_launcher.xml
+        echo '<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@drawable/ic_launcher_background"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>' > mipmap-anydpi-v26/ic_launcher_round.xml
         
-        curl -sL "$ICON_URL" -o mipmap-xxhdpi/ic_launcher.png
-        curl -sL "$ICON_URL" -o mipmap-xxhdpi/ic_launcher_round.png
-        
-        curl -sL "$ICON_URL" -o mipmap-xxxhdpi/ic_launcher.png
-        curl -sL "$ICON_URL" -o mipmap-xxxhdpi/ic_launcher_round.png
-        echo "Successfully injected VS Code app icons!"
+        echo "Nuked capacitor branding and successfully injected VS Code Adaptive Icon!"
 
     - name: Fix Network & Mixed Content Security
       run: |
