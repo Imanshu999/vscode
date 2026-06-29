@@ -28,7 +28,7 @@ jobs:
     - name: Install Root Dependencies
       run: |
         yarn config set ignore-engines true
-        yarn install --network-timeout 100000
+        yarn install --ignore-scripts --network-timeout 100000
 
     - name: Compile VS Code Web Assets
       run: |
