@@ -18,14 +18,13 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '21'
+        java-version: '17' # ग्रैडल के लिए स्थिर जावा वर्ज़न
 
-    - name: Prepare Local Core Assets
+    - name: Create Web Directory
       run: |
         mkdir -p out-monaco
-        cp -r src/* out-monaco/ 2>/dev/null || cp -r public/* out-monaco/ 2>/dev/null || true
-        
-        echo '<!DOCTYPE html><html><head><title>Takano3D Code</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="Content-Security-Policy" content="default-src * \x27unsafe-inline\x27 \x27unsafe-eval\x27 data: blob:; img-src * data: blob:; style-src * \x27unsafe-inline\x27;"><style>html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #1e1e1e; }</style></head><body><div id="app-container" style="width:100%; height:100%;"></div><script>const root=document.getElementById("app-container");root.innerHTML=`<iframe src="https://vscode.dev" style="width:100%; height:100%; border:none;" allow="clipboard-read; clipboard-write; microphone; camera; geolocation"></iframe>`;</script></body></html>' > out-monaco/index.html
+        # एक बैकअप फ़ाइल ताकि कैपेसिटर बिल्ड के समय एरर न दे
+        echo '<!DOCTYPE html><html><body><h1>Loading Takano3D Code...</h1></body></html>' > out-monaco/index.html
 
     - name: Setup Node.js (For Capacitor CLI)
       uses: actions/setup-node@v4
@@ -36,32 +35,32 @@ jobs:
       run: |
         npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps --ignore-scripts --no-audit
 
-    - name: Configure Existing Capacitor Hybrid Bridge
+    - name: Inject Live Server URL into Capacitor
       run: |
-        # अगर फाइल नहीं है तो एक डमी कॉन्फिग बना देगा, और है तो उसे हाइब्रिड मोड में मॉडिफाई कर देगा
+        # यहाँ हम सीधे server.url में vscode.dev डाल रहे हैं ताकि iframe की ज़रूरत ही न पड़े
         node -e "
           const fs = require('fs');
           let config = {};
           if (fs.existsSync('capacitor.config.json')) {
             config = JSON.parse(fs.readFileSync('capacitor.config.json', 'utf8'));
           } else {
-            config = { appId: 'com.takano3d.app', appName: 'Takano3D Code', webDir: 'out-monaco' };
+            config = { appId: 'com.takano3d.app', appName: 'Takano3D Code' };
           }
           config.webDir = 'out-monaco';
           config.server = {
-            'androidScheme': 'https',
+            'url': 'https://vscode.dev',
+            'cleartext': true,
             'allowNavigation': ['vscode.dev', '*.vscode.dev', 'github.com']
           };
           config.plugins = {
             'CapacitorCookies': { 'enabled': true }
           };
           fs.writeFileSync('capacitor.config.json', JSON.stringify(config, null, 2));
-          console.log('Successfully updated hybrid bridge config!');
+          console.log('Successfully configured live server redirect!');
         "
 
     - name: Add Android Platform
       run: |
-        # अगर एंड्रॉइड प्लेटफॉर्म पहले से मौजूद है तो एरर न दे, चुपचाप आगे बढ़े
         npx cap add android || true
 
     - name: Fix Network & Mixed Content Security
@@ -71,7 +70,7 @@ jobs:
           echo '<?xml version="1.0" encoding="utf-8"?><network-security-config><base-config cleartextTrafficAllowed="true"><trust-anchors><certs src="system" /><certs src="user" /></trust-anchors></base-config></network-security-config>' > $CONFIG_FILE
         fi
 
-    - name: Copy Web Build to Android Assets
+    - name: Copy and Sync Assets
       run: npx cap sync android
 
     - name: Build Unsigned APK via Gradle
