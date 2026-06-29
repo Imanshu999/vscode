@@ -47,10 +47,13 @@ jobs:
 
     - name: Install Root Dependencies via NPM
       run: |
-        npm install --legacy-peer-deps --ignore-scripts
+        # बिना ignore-scripts के फ्रेश इंस्टॉल ताकि सारे कंपाइलर टूल्स चालू हो जाएं
+        npm install --legacy-peer-deps
 
     - name: Compile VS Code Web Assets
       run: |
+        # फ़ोल्डर बनाना सुनिश्चित करना और कंपाइल करना
+        mkdir -p out-monaco
         npm run compile || true
         npx gulp compile-web || true
 
