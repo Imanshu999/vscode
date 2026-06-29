@@ -18,7 +18,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '21' # आपके प्रोजेक्ट के अनुसार इसे 21 पर लॉक कर दिया
+        java-version: '21'
 
     - name: Create Web Directory
       run: |
@@ -54,12 +54,35 @@ jobs:
             'CapacitorCookies': { 'enabled': true }
           };
           fs.writeFileSync('capacitor.config.json', JSON.stringify(config, null, 2));
-          console.log('Successfully configured live server redirect!');
         "
 
     - name: Add Android Platform
       run: |
         npx cap add android || true
+
+    - name: Inject VS Code Official App Icon
+      run: |
+        # एंड्रॉइड के सभी मिपमैप (mipmap) फ़ोल्डर्स में वीएस कोड का ऑफिशियल आइकन डाउनलोड करके रिप्लेस करना
+        cd android/app/src/main/res
+        
+        ICON_URL="https://raw.githubusercontent.com/microsoft/vscode/main/resources/linux/code.png"
+        
+        # सभी रेजोल्यूशन फ़ोल्डर्स में डिफॉल्ट ic_launcher.png और ic_launcher_round.png को बदलना
+        curl -sL "$ICON_URL" -o mipmap-mdpi/ic_launcher.png
+        curl -sL "$ICON_URL" -o mipmap-mdpi/ic_launcher_round.png
+        
+        curl -sL "$ICON_URL" -o mipmap-hdpi/ic_launcher.png
+        curl -sL "$ICON_URL" -o mipmap-hdpi/ic_launcher_round.png
+        
+        curl -sL "$ICON_URL" -o mipmap-xhdpi/ic_launcher.png
+        curl -sL "$ICON_URL" -o mipmap-xhdpi/ic_launcher_round.png
+        
+        curl -sL "$ICON_URL" -o mipmap-xxhdpi/ic_launcher.png
+        curl -sL "$ICON_URL" -o mipmap-xxhdpi/ic_launcher_round.png
+        
+        curl -sL "$ICON_URL" -o mipmap-xxxhdpi/ic_launcher.png
+        curl -sL "$ICON_URL" -o mipmap-xxxhdpi/ic_launcher_round.png
+        echo "Successfully injected VS Code app icons!"
 
     - name: Fix Network & Mixed Content Security
       run: |
@@ -75,7 +98,6 @@ jobs:
       run: |
         cd android
         chmod +x gradlew
-        # यहाँ हम ग्रैडल को सीधे JAVA_HOME पाथ पास कर रहे हैं ताकि वह एरर न दे
         ./gradlew assembleDebug -Dorg.gradle.java.home=$JAVA_HOME_21_X64
 
     - name: Upload Takano3D APK Artifact
