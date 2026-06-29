@@ -14,16 +14,15 @@ jobs:
     - name: Checkout Source Code
       uses: actions/checkout@v4
 
-    - name: Setup Java JDK
+    - name: Setup Java JDK (Fixed for Capacitor Gradle)
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '17' # ग्रैडल के लिए स्थिर जावा वर्ज़न
+        java-version: '17' # इसे वापस 17 किया ताकि 'invalid source release' एरर न आए
 
     - name: Create Web Directory
       run: |
         mkdir -p out-monaco
-        # एक बैकअप फ़ाइल ताकि कैपेसिटर बिल्ड के समय एरर न दे
         echo '<!DOCTYPE html><html><body><h1>Loading Takano3D Code...</h1></body></html>' > out-monaco/index.html
 
     - name: Setup Node.js (For Capacitor CLI)
@@ -37,7 +36,6 @@ jobs:
 
     - name: Inject Live Server URL into Capacitor
       run: |
-        # यहाँ हम सीधे server.url में vscode.dev डाल रहे हैं ताकि iframe की ज़रूरत ही न पड़े
         node -e "
           const fs = require('fs');
           let config = {};
