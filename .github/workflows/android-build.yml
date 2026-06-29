@@ -64,10 +64,14 @@ jobs:
 
     - name: Compile VS Code Web Assets
       run: |
-        # फ़ोल्डर बनाना और एरर आने पर भी प्रोसेस को आगे बढ़ाना (|| true) ताकि अननोन एक्सटेंशन पर रनर न रुके
         mkdir -p out-monaco
         npm run compile || true
         npx gulp compile-web || true
+        
+        # कैपेसिटर को खुश करने के लिए आवश्यक index.html फ़ाइल जनरेट करना
+        if [ ! -f "out-monaco/index.html" ]; then
+          echo '<!DOCTYPE html><html><head><title>Takano3D Code</title></head><body><div id="root"></div></body></html>' > out-monaco/index.html
+        fi
 
     - name: Upgrade Node.js (For Capacitor CLI)
       uses: actions/setup-node@v4
