@@ -14,22 +14,24 @@ jobs:
     - name: Checkout Source Code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js
+    - name: Setup Node.js (v16 required for this version of VS Code)
       uses: actions/setup-node@v4
       with:
-        node-version: 18
+        node-version: 16.20.2
 
     - name: Setup Java JDK
       uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
-        java-version: '17'
+        java-version: '11'
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
     - name: Install Root Dependencies
-      run: yarn install --frozen-lockfile
+      run: |
+        yarn config set ignore-engines true
+        yarn install
 
     - name: Compile VS Code Web Assets
       run: |
