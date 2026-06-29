@@ -14,7 +14,7 @@ jobs:
     - name: Checkout Source Code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js
+    - name: Setup Node.js (Legacy for VS Code Build)
       uses: actions/setup-node@v4
       with:
         node-version: '16.20.2'
@@ -27,11 +27,9 @@ jobs:
 
     - name: Force Purge Yarn and Broken Deps
       run: |
-        # Yarn की लॉक फ़ाइल और उसके वजूद को पूरी तरह मिटाना ताकि वह ट्रिगर ही न हो
         rm -f yarn.lock
         find . -name "yarn.lock" -type f -delete
         
-        # सभी package.json फाइल्स में से उस जिद्दी पैकेज को पूरी तरह डिलीट करना
         find . -name "package.json" -type f -exec node -e "
           const fs = require('fs');
           const file = process.argv[1];
@@ -49,14 +47,17 @@ jobs:
 
     - name: Install Root Dependencies via NPM
       run: |
-        # npm का इस्तेमाल करके बिना किसी गिट एरर के सीधे पैकेजेस इंस्टॉल करना
         npm install --legacy-peer-deps --ignore-scripts
 
     - name: Compile VS Code Web Assets
       run: |
-        # npm रन स्क्रिप्ट्स का इस्तेमाल करके कंपाइल करना
         npm run compile || true
         npx gulp compile-web || true
+
+    - name: Upgrade Node.js (For Capacitor CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
 
     - name: Install Capacitor CLI & Core
       run: npm install @capacitor/core @capacitor/cli @capacitor/android
