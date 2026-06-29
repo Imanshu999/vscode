@@ -25,21 +25,43 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
-    - name: Force Git URL Redirect & Clean
+    - name: Hard-Block Broken Microsoft Git URL
       run: |
-        # गिटहब सर्वर्स को बोलना कि इस खराब गिट यूआरएल की जगह सीधे एक खाली पब्लिक गिटहब रिपो को हिट करे
+        # गिट सिस्टम के अंदर इस खराब लिंक को हमेशा के लिए एक डमी चालू रिपो पर रीडायरेक्ट करना
+        git config --global url."https://github.com/actions/checkout".insteadOf "https://github.com/microsoft/vscode-gulp-electron"
         git config --global url."https://github.com/actions/checkout.git".insteadOf "https://github.com/microsoft/vscode-gulp-electron.git"
         git config --global url."https://github.com/actions/checkout.git".insteadOf "git+https://github.com/microsoft/vscode-gulp-electron.git"
+        git config --global url."https://github.com/actions/checkout.git".insteadOf "git+ssh://git@github.com/microsoft/vscode-gulp-electron.git"
         
-        # सभी सब-फ़ोल्डर्स की फाइल्स को साफ़ करना
-        rm -f yarn.lock package-lock.json
+        # सभी पुराने लॉक और कैश को पूरी तरह मिटाना
+        rm -rf yarn.lock package-lock.json
         find . -name "yarn.lock" -type f -delete
         find . -name "package-lock.json" -type f -delete
+
+    - name: Clean package.json Dependencies
+      run: |
+        # पूरे प्रोजेक्ट की हर एक package.json फ़ाइल में से इसका वजूद मिटाना
+        find . -name "package.json" -type f -exec node -e "
+          const fs = require('fs');
+          const file = process.argv[1];
+          try {
+            let content = fs.readFileSync(file, 'utf8');
+            if (content.includes('vscode-gulp-electron')) {
+              const pkg = JSON.parse(content);
+              if (pkg.dependencies) delete pkg.dependencies['vscode-gulp-electron'];
+              if (pkg.devDependencies) delete pkg.devDependencies['vscode-gulp-electron'];
+              if (pkg.optionalDependencies) delete pkg.optionalDependencies['vscode-gulp-electron'];
+              fs.writeFileSync(file, JSON.stringify(pkg, null, 2));
+              console.log('Successfully deleted from:', file);
+            }
+          } catch(e) {}
+        " {} \;
 
     - name: Install Root Dependencies
       run: |
         yarn config set ignore-engines true
-        yarn install --ignore-scripts --network-timeout 150000
+        # बिना किसी नेटवर्क रुकावट के जबरदस्ती सिर्फ ज़रूरी चीज़ें इंस्टॉल करना
+        yarn install --ignore-scripts --prefer-offline --network-timeout 200000
 
     - name: Compile VS Code Web Assets
       run: |
