@@ -23,7 +23,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '11'
+        java-version: '17' # Gradle और Android Build के लिए Java 17 पर अपग्रेड किया
 
     - name: Absolute Purge of Native and Broken Dependencies
       run: |
@@ -68,7 +68,6 @@ jobs:
         npm run compile || true
         npx gulp compile-web || true
         
-        # कैपेसिटर को खुश करने के लिए आवश्यक index.html फ़ाइल जनरेट करना
         if [ ! -f "out-monaco/index.html" ]; then
           echo '<!DOCTYPE html><html><head><title>Takano3D Code</title></head><body><div id="root"></div></body></html>' > out-monaco/index.html
         fi
@@ -93,6 +92,7 @@ jobs:
     - name: Build Unsigned APK via Gradle
       run: |
         cd android
+        chmod +x gradlew
         ./gradlew assembleDebug
 
     - name: Upload Takano3D APK Artifact
